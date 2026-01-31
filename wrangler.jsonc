@@ -8,6 +8,22 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS"
   },
+  "r2_buckets": [
+    {
+      "bucket_name": "aine-life-inc-cache",
+      "binding": "NEXT_INC_CACHE_R2_BUCKET"
+    }
+  ],
+  "env": {
+    "preview": {
+      "r2_buckets": [
+        {
+          "bucket_name": "aine-life-inc-cache-preview",
+          "binding": "NEXT_INC_CACHE_R2_BUCKET"
+        }
+      ]
+    }
+  },
   "observability": {
     "enabled": true
   }
