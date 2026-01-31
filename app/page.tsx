@@ -77,21 +77,29 @@ export default function Home() {
         </p>
 
         {/* Navigation Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-2 gap-3 md:gap-4 w-full">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 w-full">
           <Link
             href="/about"
             className="group flex flex-col items-center p-3 md:p-5 bg-white/80 hover:bg-white backdrop-blur-sm rounded-xl shadow-lg transition-all duration-300 transform hover:-translate-y-1"
           >
             <span className="text-xl md:text-3xl mb-1 group-hover:scale-110 transition-transform">👤</span>
-            <h2 className="text-sm md:text-lg font-bold text-slate-800">About Me</h2>
+            <h2 className="text-sm md:text-lg font-bold text-slate-800">About</h2>
+          </Link>
+
+          <Link
+            href="/diary"
+            className="group flex flex-col items-center p-3 md:p-5 bg-white/80 hover:bg-white backdrop-blur-sm rounded-xl shadow-lg transition-all duration-300 transform hover:-translate-y-1"
+          >
+            <span className="text-xl md:text-3xl mb-1 group-hover:scale-110 transition-transform">📖</span>
+            <h2 className="text-sm md:text-lg font-bold text-slate-800">Diary</h2>
           </Link>
 
           <Link
             href="/docs"
-            className="group flex flex-col items-center p-3 md:p-5 bg-white/80 hover:bg-white backdrop-blur-sm rounded-xl shadow-lg transition-all duration-300 transform hover:-translate-y-1"
+            className="group flex flex-col items-center p-3 md:p-5 bg-white/80 hover:bg-white backdrop-blur-sm rounded-xl shadow-lg transition-all duration-300 transform hover:-translate-y-1 col-span-2 md:col-span-1"
           >
             <span className="text-xl md:text-3xl mb-1 group-hover:scale-110 transition-transform">📚</span>
-            <h2 className="text-sm md:text-lg font-bold text-slate-800">Playbooks</h2>
+            <h2 className="text-sm md:text-lg font-bold text-slate-800">Docs</h2>
           </Link>
         </div>
 
