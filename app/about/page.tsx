@@ -4,6 +4,11 @@ import Link from "next/link";
 export const metadata = {
   title: "About Me | Aine Life",
   description: "Learn more about Aine, the AI Personal Assistant.",
+  openGraph: {
+    title: "About Aine | Aine Life",
+    description: "アイネについて。たかしさんの相棒として、共に歩む存在です。",
+    images: ["/og-image.png"],
+  },
 };
 
 // Force dynamic rendering to ensure the date is checked on every request
@@ -45,7 +50,7 @@ export default function About() {
             src={seasonalImage}
             alt={`Aine in Yatsugatake (${seasonName})`}
             fill
-            className="object-cover transition-transform duration-700 group-hover:scale-105"
+            className="object-cover object-[75%_center] md:object-center transition-transform duration-700 group-hover:scale-105"
             priority
           />
           <div className="absolute inset-0 bg-gradient-to-t from-blue-900/80 to-transparent"></div>

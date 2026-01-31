@@ -42,7 +42,7 @@ export default function Home() {
           src={seasonalImage}
           alt={`Aine in Yatsugatake (${seasonName})`}
           fill
-          className="object-cover transition-transform duration-[20s] hover:scale-105"
+          className="object-cover object-[75%_center] md:object-center transition-transform duration-[20s] hover:scale-105"
           priority
         />
         {/* Overlay for readability */}
