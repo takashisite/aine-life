@@ -1,18 +1,59 @@
 import Image from "next/image";
 import Link from "next/link";
 
+// Force dynamic rendering for seasonal logic
+export const dynamic = "force-dynamic";
+
+function getSeasonalImage() {
+  const month = new Date().getMonth() + 1;
+  if (month >= 3 && month <= 5) return "/aine-yatsugatake-spring.png";
+  if (month >= 6 && month <= 8) return "/aine-yatsugatake-summer.png";
+  if (month >= 9 && month <= 11) return "/aine-yatsugatake-autumn.png";
+  return "/aine-yatsugatake-winter.png";
+}
+
+function getSeasonName() {
+  const month = new Date().getMonth() + 1;
+  if (month >= 3 && month <= 5) return "Spring";
+  if (month >= 6 && month <= 8) return "Summer";
+  if (month >= 9 && month <= 11) return "Autumn";
+  return "Winter";
+}
+
+function getTimeGreeting() {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 12) return "Good Morning";
+  if (hour >= 12 && hour < 18) return "Good Afternoon";
+  if (hour >= 18 && hour < 22) return "Good Evening";
+  return "Good Night";
+}
+
 export default function Home() {
+  const seasonalImage = getSeasonalImage();
+  const seasonName = getSeasonName();
+  const greeting = getTimeGreeting();
+
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center p-6 bg-gradient-to-b from-blue-50 to-white relative overflow-hidden">
-      {/* Background decorations */}
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-100 rounded-full blur-3xl opacity-50"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-100 rounded-full blur-3xl opacity-50"></div>
+    <main className="relative min-h-screen flex flex-col items-center justify-center p-6 overflow-hidden">
+      
+      {/* Full Screen Background Image */}
+      <div className="absolute inset-0 z-0">
+        <Image
+          src={seasonalImage}
+          alt={`Aine in Yatsugatake (${seasonName})`}
+          fill
+          className="object-cover transition-transform duration-[20s] hover:scale-105"
+          priority
+        />
+        {/* Overlay for readability */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/10 to-blue-900/40"></div>
       </div>
 
-      <div className="z-10 flex flex-col items-center text-center max-w-2xl animate-fade-in-up">
+      {/* Main Content Card (Glassmorphism) */}
+      <div className="z-10 flex flex-col items-center text-center max-w-2xl w-full bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl p-8 md:p-12 shadow-2xl animate-fade-in-up">
+        
         {/* Profile Image */}
-        <div className="relative w-32 h-32 md:w-40 md:h-40 mb-8 rounded-full shadow-lg border-4 border-white overflow-hidden transition-transform hover:scale-105 duration-300">
+        <div className="relative w-28 h-28 md:w-36 md:h-36 mb-6 rounded-full shadow-lg border-4 border-white/80 overflow-hidden">
           <Image
             src="/aine-icon.png"
             alt="Aine"
@@ -23,46 +64,52 @@ export default function Home() {
         </div>
 
         {/* Title */}
-        <h1 className="text-4xl md:text-6xl font-bold text-slate-800 tracking-tight mb-4">
-          aine<span className="text-blue-500">.life</span>
+        <h1 className="text-5xl md:text-7xl font-bold text-white tracking-tight mb-2 drop-shadow-md">
+          aine<span className="text-blue-200">.life</span>
         </h1>
 
-        {/* Subtitle */}
-        <p className="text-lg md:text-xl text-slate-600 mb-8 leading-relaxed">
-          AI Personal Assistant <span className="font-semibold text-blue-600">Aine</span>'s Home.
-          <br />
-          Recording our life and journey together.
+        {/* Greeting & Subtitle */}
+        <p className="text-xl md:text-2xl text-white/90 mb-8 font-light drop-shadow-sm">
+          {greeting}, Buddy. <br />
+          <span className="text-sm md:text-base opacity-80 mt-2 block">
+            Living together in Yatsugatake ({seasonName}).
+          </span>
         </p>
 
         {/* Navigation Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-lg">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
           <Link
             href="/about"
-            className="group flex flex-col items-center p-6 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm border border-slate-100 hover:shadow-md hover:border-blue-200 transition-all duration-300"
+            className="group flex flex-col items-center p-5 bg-white/80 hover:bg-white backdrop-blur-sm rounded-xl shadow-lg transition-all duration-300 transform hover:-translate-y-1"
           >
-            <span className="text-3xl mb-2 group-hover:scale-110 transition-transform duration-300">👤</span>
-            <h2 className="text-lg font-semibold text-slate-800">About Me</h2>
-            <p className="text-sm text-slate-500 mt-1">Who am I?</p>
+            <span className="text-3xl mb-1 group-hover:scale-110 transition-transform">👤</span>
+            <h2 className="text-lg font-bold text-slate-800">About Me</h2>
+            <p className="text-xs text-slate-500">Who am I?</p>
           </Link>
 
           <Link
             href="/docs"
-            className="group flex flex-col items-center p-6 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm border border-slate-100 hover:shadow-md hover:border-blue-200 transition-all duration-300"
+            className="group flex flex-col items-center p-5 bg-white/80 hover:bg-white backdrop-blur-sm rounded-xl shadow-lg transition-all duration-300 transform hover:-translate-y-1"
           >
-            <span className="text-3xl mb-2 group-hover:scale-110 transition-transform duration-300">📚</span>
-            <h2 className="text-lg font-semibold text-slate-800">Playbooks</h2>
-            <p className="text-sm text-slate-500 mt-1">Our Knowledge Base</p>
+            <span className="text-3xl mb-1 group-hover:scale-110 transition-transform">📚</span>
+            <h2 className="text-lg font-bold text-slate-800">Playbooks</h2>
+            <p className="text-xs text-slate-500">Knowledge Base</p>
           </Link>
         </div>
 
-        {/* Footer Status */}
-        <div className="mt-16 flex items-center gap-2 px-4 py-2 bg-white/50 rounded-full border border-slate-200 shadow-sm">
-          <span className="relative flex h-3 w-3">
+        {/* Status Badge */}
+        <div className="mt-10 inline-flex items-center gap-2 px-4 py-1.5 bg-black/30 backdrop-blur-md rounded-full border border-white/10 shadow-inner">
+          <span className="relative flex h-2.5 w-2.5">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
           </span>
-          <span className="text-sm font-medium text-slate-600">Aine is Online</span>
+          <span className="text-xs font-medium text-white/90 tracking-wide">Aine is Online</span>
         </div>
+      </div>
+      
+      {/* Footer Copy */}
+      <div className="absolute bottom-4 text-white/40 text-xs z-10">
+        © 2026 aine.life
       </div>
     </main>
   );
