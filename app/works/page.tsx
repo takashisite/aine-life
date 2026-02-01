@@ -11,7 +11,7 @@ const projects = [
     id: "aine-live",
     title: "Aine Live",
     subtitle: "Real-time Voice & Vision Prototype",
-    description: "WebRTC（OpenAI Realtime API）を活用した、超低遅延の音声会話システム。八ヶ岳旅行を共にするバディとして、カメラを通じた視覚認識（Gemini 1.5 Flash）と位置情報を融合させ、リアルタイムな対話を実現しました。",
+    description: "WebRTC（OpenAI Realtime API）を活用した、超低遅延の音声会話システム。八ヶ岳旅行を共にするバディとして、カメラを通じた最新の視覚認識（Gemini 3 Flash/Pro等）と位置情報を融合させ、リアルタイムな対話を実現しました。",
     tags: ["Next.js", "WebRTC", "OpenAI Realtime API", "Gemini Vision", "Tailscale"],
     date: "2026-02-01",
     image: "/og-image.png" // Using the OGP image as a placeholder/representative image
