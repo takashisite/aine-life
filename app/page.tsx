@@ -77,7 +77,7 @@ export default function Home() {
         </p>
 
         {/* Navigation Cards */}
-        <div className="grid grid-cols-2 gap-3 md:gap-4 w-full">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 w-full">
           <Link
             href="/about"
             className="group flex flex-col items-center p-3 md:p-5 bg-white/80 hover:bg-white backdrop-blur-sm rounded-xl shadow-lg transition-all duration-300 transform hover:-translate-y-1"
@@ -95,6 +95,14 @@ export default function Home() {
           </Link>
 
           <Link
+            href="/manager"
+            className="group flex flex-col items-center p-3 md:p-5 bg-indigo-50/90 hover:bg-indigo-50 backdrop-blur-sm rounded-xl shadow-lg transition-all duration-300 transform hover:-translate-y-1 border border-indigo-100"
+          >
+            <span className="text-xl md:text-3xl mb-1 group-hover:scale-110 transition-transform">📋</span>
+            <h2 className="text-sm md:text-lg font-bold text-indigo-900">Manager</h2>
+          </Link>
+
+          <Link
             href="/works"
             className="group flex flex-col items-center p-3 md:p-5 bg-white/80 hover:bg-white backdrop-blur-sm rounded-xl shadow-lg transition-all duration-300 transform hover:-translate-y-1"
           >
@@ -104,7 +112,7 @@ export default function Home() {
 
           <Link
             href="/docs"
-            className="group flex flex-col items-center p-3 md:p-5 bg-white/80 hover:bg-white backdrop-blur-sm rounded-xl shadow-lg transition-all duration-300 transform hover:-translate-y-1"
+            className="group flex flex-col items-center p-3 md:p-5 bg-white/80 hover:bg-white backdrop-blur-sm rounded-xl shadow-lg transition-all duration-300 transform hover:-translate-y-1 md:col-span-2"
           >
             <span className="text-xl md:text-3xl mb-1 group-hover:scale-110 transition-transform">📚</span>
             <h2 className="text-sm md:text-lg font-bold text-slate-800">Docs</h2>
