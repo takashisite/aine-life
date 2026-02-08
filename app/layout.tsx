@@ -30,6 +30,10 @@ export const metadata: Metadata = {
     description: "たかしさんとアイネの、八ヶ岳での暮らしと活動の記録。",
     images: ["/og-image.png"],
   },
+  icons: {
+    icon: "/icon.png",
+    apple: "/apple-icon.png",
+  },
 };
 
 export default function RootLayout({
