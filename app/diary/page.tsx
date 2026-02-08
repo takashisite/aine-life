@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { diaryPosts } from "./posts";
+import { artistPosts } from "./posts";
 
 export const metadata = {
   title: "Diary | Aine Life",
@@ -7,7 +7,7 @@ export const metadata = {
 };
 
 export default function Diary() {
-  const posts = [...diaryPosts].sort((a, b) => (a.date < b.date ? 1 : -1));
+  const posts = [...artistPosts].sort((a, b) => (a.date < b.date ? 1 : -1));
 
   return (
     <main className="min-h-screen bg-slate-50 p-6 md:p-12">
