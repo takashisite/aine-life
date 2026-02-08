@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getManagerPosts } from "../posts";
+import { getManagerPosts } from "@/app/diary/posts";
 
 interface Props {
   params: Promise<{ slug: string }>;
