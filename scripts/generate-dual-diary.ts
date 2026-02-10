@@ -98,9 +98,12 @@ async function callLLM(
 
     const data = await response.json();
     const content = data.choices[0].message.content;
+    console.log(`Raw response from ${model}:`, content.substring(0, 500));
     
     try {
-      return JSON.parse(content) as GeneratedPost;
+      const parsed = JSON.parse(content) as GeneratedPost;
+      console.log(`Parsed keys:`, Object.keys(parsed));
+      return parsed;
     } catch (e) {
       // Fallback: try to extract JSON from markdown block
       const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) || content.match(/\{[\s\S]*\}/);
@@ -215,7 +218,7 @@ async function main() {
   if (artistPost || managerPost) {
     let fileContent = await fs.readFile(TARGET_FILE, "utf-8");
 
-    if (artistPost) {
+    if (artistPost && artistPost.slug && artistPost.title && artistPost.excerpt && artistPost.contentJsx) {
       console.log("Inserting Artist Post:", artistPost.title);
       const newEntry = `
   {
@@ -234,7 +237,7 @@ async function main() {
       fileContent = fileContent.replace("// -- GENERATED ARTIST POSTS START --", `// -- GENERATED ARTIST POSTS START --${newEntry}`);
     }
 
-    if (managerPost) {
+    if (managerPost && managerPost.slug && managerPost.title && managerPost.excerpt && managerPost.contentJsx) {
       console.log("Inserting Manager Post:", managerPost.title);
       const newEntry = `
   {
