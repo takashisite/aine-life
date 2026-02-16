@@ -7,12 +7,11 @@ import { promisify } from "util";
 const execAsync = promisify(exec);
 
 // --- CONFIG ---
-const HOME = process.env.HOME;
-if (!HOME) {
-  // eslint-disable-next-line no-console
-  console.error("HOME is not set");
-  process.exit(1);
-}
+const HOME: string = (() => {
+  const v = process.env.HOME;
+  if (!v) throw new Error("HOME is not set");
+  return v;
+})();
 
 const OPENCLAW_CONFIG_PATH = path.join(HOME, ".openclaw/openclaw.json");
 const MEMORY_DIR = path.join(HOME, "clawd/memory");
