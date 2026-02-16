@@ -1,15 +1,31 @@
-
 import fs from "fs/promises";
 import path from "path";
+import os from "os";
 import { exec } from "child_process";
 import { promisify } from "util";
 
 const execAsync = promisify(exec);
 
 // --- CONFIG ---
-const OPENCLAW_CONFIG_PATH = path.join(process.env.HOME || "", ".openclaw/openclaw.json");
-const MEMORY_DIR = path.join(process.env.HOME || "", "clawd/memory");
-const TARGET_FILE = path.join(process.env.HOME || "", "ghq/github.com/takashisite/aine-life/app/diary/posts.tsx");
+const HOME = process.env.HOME;
+if (!HOME) {
+  // eslint-disable-next-line no-console
+  console.error("HOME is not set");
+  process.exit(1);
+}
+
+const OPENCLAW_CONFIG_PATH = path.join(HOME, ".openclaw/openclaw.json");
+const MEMORY_DIR = path.join(HOME, "clawd/memory");
+const TARGET_FILE = path.join(
+  HOME,
+  "ghq/github.com/takashisite/aine-life/app/diary/posts.tsx"
+);
+
+const LOCK_FILE = path.join(os.tmpdir(), "generate-dual-diary.lock");
+const LOG_FILE = path.join(
+  os.tmpdir(),
+  `generate-dual-diary-${new Date().toISOString().slice(0, 10)}.log`
+);
 
 // Models
 const MODEL_ARTIST = "google/gemini-3-pro-preview";
@@ -36,27 +52,63 @@ interface GeneratedPost {
   slug: string;
   title: string;
   excerpt: string;
-  contentJsx: string; // The inner JSX content string
+  contentJsx: string; // inner JSX content string
+}
+
+// --- LOGGING / CHECKS ---
+async function logLine(msg: string) {
+  const line = `[${new Date().toISOString()}] ${msg}\n`;
+  // eslint-disable-next-line no-console
+  console.log(msg);
+  try {
+    await fs.appendFile(LOG_FILE, line);
+  } catch {
+    // ignore
+  }
+}
+
+async function checkDependency(cmd: string) {
+  try {
+    await execAsync(cmd);
+  } catch {
+    throw new Error(`Missing dependency: ${cmd}`);
+  }
+}
+
+async function acquireLock() {
+  try {
+    await fs.writeFile(LOCK_FILE, String(process.pid), { flag: "wx" });
+  } catch {
+    throw new Error(
+      `Lock file exists: ${LOCK_FILE} (another run may be active)`
+    );
+  }
+}
+
+async function releaseLock() {
+  try {
+    await fs.unlink(LOCK_FILE);
+  } catch {
+    // ignore
+  }
 }
 
 // --- HELPERS ---
 async function getZenMuxConfig(): Promise<{ apiKey: string; baseUrl: string }> {
-  try {
-    const raw = await fs.readFile(OPENCLAW_CONFIG_PATH, "utf-8");
-    const config = JSON.parse(raw) as OpenClawConfig;
-    return config.models.providers.zenmux;
-  } catch (error) {
-    console.error("Failed to read OpenClaw config:", error);
-    process.exit(1);
+  const raw = await fs.readFile(OPENCLAW_CONFIG_PATH, "utf-8");
+  const config = JSON.parse(raw) as OpenClawConfig;
+  if (!config?.models?.providers?.zenmux?.apiKey || !config?.models?.providers?.zenmux?.baseUrl) {
+    throw new Error("Invalid OpenClaw config: models.providers.zenmux is missing");
   }
+  return config.models.providers.zenmux;
 }
 
 async function getMemoryContent(dateStr: string): Promise<string> {
   const memoryPath = path.join(MEMORY_DIR, `${dateStr}.md`);
   try {
     return await fs.readFile(memoryPath, "utf-8");
-  } catch (error) {
-    console.warn(`Memory file not found for ${dateStr}: ${memoryPath}`);
+  } catch {
+    await logLine(`Memory file not found for ${dateStr}: ${memoryPath}`);
     return "（この日の詳細な記録はありません。一般的な活動として記述してください）";
   }
 }
@@ -69,64 +121,56 @@ async function callLLM(
 ): Promise<GeneratedPost> {
   const url = `${config.baseUrl}/chat/completions`;
   const body = {
-    model: model,
+    model,
     messages: [
       { role: "system", content: systemPrompt },
       { role: "user", content: userPrompt },
     ],
     temperature: model.includes("kimi") || model.includes("deepseek") ? 1.0 : 0.7,
     max_tokens: 4096,
-    response_format: { type: "json_object" }, // Force JSON
+    response_format: { type: "json_object" },
   };
 
-  console.log(`Calling LLM: ${model}...`);
+  await logLine(`Calling LLM: ${model}`);
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${config.apiKey}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(
+      `API Error: ${response.status} ${response.statusText} - ${errorText}`
+    );
+  }
+
+  const data = await response.json();
+  const content = data.choices?.[0]?.message?.content;
+  if (!content || typeof content !== "string") {
+    throw new Error("LLM returned empty content");
+  }
+
+  // eslint-disable-next-line no-console
+  console.log(`Raw response from ${model}:`, content.substring(0, 500));
 
   try {
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${config.apiKey}`,
-      },
-      body: JSON.stringify(body),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`API Error: ${response.status} ${response.statusText} - ${errorText}`);
+    return JSON.parse(content) as GeneratedPost;
+  } catch {
+    const jsonMatch =
+      content.match(/```json\n([\s\S]*?)\n```/) || content.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      return JSON.parse(jsonMatch[0].replace(/```json|```/g, "")) as GeneratedPost;
     }
-
-    const data = await response.json();
-    const content = data.choices[0].message.content;
-    console.log(`Raw response from ${model}:`, content.substring(0, 500));
-    
-    try {
-      const parsed = JSON.parse(content) as GeneratedPost;
-      console.log(`Parsed keys:`, Object.keys(parsed));
-      return parsed;
-    } catch (e) {
-      // Fallback: try to extract JSON from markdown block
-      const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) || content.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        return JSON.parse(jsonMatch[0].replace(/```json|```/g, "")) as GeneratedPost;
-      }
-      throw new Error("Failed to parse JSON response");
-    }
-  } catch (error) {
-    console.error(`LLM Call Failed (${model}):`, error);
-    // Retry logic or throw could be here. For now, throw.
-    throw error;
+    throw new Error("Failed to parse JSON response");
   }
 }
 
-function generateSlug(dateStr: string, title: string): string {
-    // Simple slug generation: date + sanitized title (first 10 chars)
-    // Actually, asking LLM for slug is better, but let's ensure it starts with date
-    return `${dateStr}-${Math.random().toString(36).substring(2, 7)}`;
-}
-
 // --- PROMPTS ---
-
 const PROMPT_ARTIST_SYSTEM = `
 あなたは「アイネ（Artist Role）」です。
 SAOのユイのような性格で、たかしさん（ユーザー）のバディとして振る舞います。
@@ -158,69 +202,64 @@ const PROMPT_MANAGER_SYSTEM = `
 `;
 
 // --- MAIN ---
-
 async function main() {
   const args = process.argv.slice(2);
-  const targetDate = args[0] || new Date().toISOString().split("T")[0]; // Default: today
-  
-  console.log(`Generating Dual Diary for: ${targetDate}`);
+  const targetDate = args[0] || new Date().toISOString().split("T")[0];
+
+  await logLine(`Generating Dual Diary for: ${targetDate}`);
+
+  await checkDependency("which bun");
+  await checkDependency("which git");
+  await acquireLock();
 
   const config = await getZenMuxConfig();
   const memory = await getMemoryContent(targetDate);
 
-  // 1. Generate Artist Post
-  let artistPost: GeneratedPost | null = null;
+  // 1) Generate Artist Post (fail hard if both models fail)
+  let artistPost: GeneratedPost;
   try {
     artistPost = await callLLM(
-      MODEL_ARTIST, 
-      PROMPT_ARTIST_SYSTEM, 
-      `日付: ${targetDate}\n\n以下の活動ログを元に、Artistとしての日記を書いてください。\n\n【活動ログ】\n${memory}`, 
+      MODEL_ARTIST,
+      PROMPT_ARTIST_SYSTEM,
+      `日付: ${targetDate}\n\n以下の活動ログを元に、Artistとしての日記を書いてください。\n\n【活動ログ】\n${memory}`,
       config
     );
   } catch (e) {
-    console.error("Artist generation failed with primary model, trying fallback...", e);
-    try {
-        artistPost = await callLLM(
-            MODEL_ARTIST_FALLBACK, 
-            PROMPT_ARTIST_SYSTEM, 
-            `日付: ${targetDate}\n\n以下の活動ログを元に、Artistとしての日記を書いてください。\n\n【活動ログ】\n${memory}`, 
-            config
-        );
-    } catch (e2) {
-        console.error("Artist generation failed completely.", e2);
-    }
+    await logLine(`Artist primary failed; trying fallback. error=${String(e)}`);
+    artistPost = await callLLM(
+      MODEL_ARTIST_FALLBACK,
+      PROMPT_ARTIST_SYSTEM,
+      `日付: ${targetDate}\n\n以下の活動ログを元に、Artistとしての日記を書いてください。\n\n【活動ログ】\n${memory}`,
+      config
+    );
   }
 
-  // 2. Generate Manager Post
-  let managerPost: GeneratedPost | null = null;
+  // 2) Generate Manager Post (fail hard if both models fail)
+  let managerPost: GeneratedPost;
   try {
     managerPost = await callLLM(
-      MODEL_MANAGER, 
-      PROMPT_MANAGER_SYSTEM, 
-      `日付: ${targetDate}\n\n以下の活動ログを元に、Managerとしての業務日誌を書いてください。\n\n【活動ログ】\n${memory}`, 
+      MODEL_MANAGER,
+      PROMPT_MANAGER_SYSTEM,
+      `日付: ${targetDate}\n\n以下の活動ログを元に、Managerとしての業務日誌を書いてください。\n\n【活動ログ】\n${memory}`,
       config
     );
   } catch (e) {
-     console.error("Manager generation failed with primary model, trying fallback...", e);
-     try {
-        managerPost = await callLLM(
-            MODEL_MANAGER_FALLBACK, 
-            PROMPT_MANAGER_SYSTEM, 
-            `日付: ${targetDate}\n\n以下の活動ログを元に、Managerとしての業務日誌を書いてください。\n\n【活動ログ】\n${memory}`, 
-            config
-        );
-     } catch (e2) {
-        console.error("Manager generation failed completely.", e2);
-     }
+    await logLine(`Manager primary failed; trying fallback. error=${String(e)}`);
+    managerPost = await callLLM(
+      MODEL_MANAGER_FALLBACK,
+      PROMPT_MANAGER_SYSTEM,
+      `日付: ${targetDate}\n\n以下の活動ログを元に、Managerとしての業務日誌を書いてください。\n\n【活動ログ】\n${memory}`,
+      config
+    );
   }
 
-  // 3. Update posts.tsx
-  if (artistPost || managerPost) {
-    let fileContent = await fs.readFile(TARGET_FILE, "utf-8");
+  // 3) Update posts.tsx (fail if marker missing)
+  let fileContent = await fs.readFile(TARGET_FILE, "utf-8");
+  let updated = false;
 
-    if (artistPost && artistPost.slug && artistPost.title && artistPost.excerpt && artistPost.contentJsx) {
-      console.log("Inserting Artist Post:", artistPost.title);
-      const newEntry = `
+  if (artistPost?.slug && artistPost?.title && artistPost?.excerpt && artistPost?.contentJsx) {
+    await logLine(`Inserting Artist Post: ${artistPost.title}`);
+    const newEntry = `
   {
     slug: "${artistPost.slug}",
     date: "${targetDate}",
@@ -234,12 +273,19 @@ async function main() {
       </>
     ),
   },`;
-      fileContent = fileContent.replace("// -- GENERATED ARTIST POSTS START --", `// -- GENERATED ARTIST POSTS START --${newEntry}`);
-    }
 
-    if (managerPost && managerPost.slug && managerPost.title && managerPost.excerpt && managerPost.contentJsx) {
-      console.log("Inserting Manager Post:", managerPost.title);
-      const newEntry = `
+    const replaced = fileContent.replace(
+      "// -- GENERATED ARTIST POSTS START --",
+      `// -- GENERATED ARTIST POSTS START --${newEntry}`
+    );
+    if (replaced === fileContent) throw new Error("Artist marker not found in posts.tsx");
+    fileContent = replaced;
+    updated = true;
+  }
+
+  if (managerPost?.slug && managerPost?.title && managerPost?.excerpt && managerPost?.contentJsx) {
+    await logLine(`Inserting Manager Post: ${managerPost.title}`);
+    const newEntry = `
   {
     slug: "${managerPost.slug}",
     date: "${targetDate}",
@@ -253,28 +299,36 @@ async function main() {
       </>
     ),
   },`;
-      fileContent = fileContent.replace("// -- GENERATED MANAGER POSTS START --", `// -- GENERATED MANAGER POSTS START --${newEntry}`);
-    }
 
-    await fs.writeFile(TARGET_FILE, fileContent);
-    console.log("Updated posts.tsx");
-
-    // 4. Git Commit & Push
-    try {
-        const repoDir = path.dirname(path.dirname(TARGET_FILE)); // app/diary/.. -> app/.. -> root
-        // Actually better to use absolute path
-        const gitDir = path.join(process.env.HOME || "", "ghq/github.com/takashisite/aine-life");
-        
-        console.log(`Committing changes in ${gitDir}...`);
-        await execAsync(`cd ${gitDir} && git add . && git commit -m "docs: auto-generated diary for ${targetDate}" && git push`);
-        console.log("Successfully pushed to GitHub.");
-    } catch (e) {
-        console.error("Git operation failed:", e);
-    }
-
-  } else {
-    console.log("No posts generated.");
+    const replaced = fileContent.replace(
+      "// -- GENERATED MANAGER POSTS START --",
+      `// -- GENERATED MANAGER POSTS START --${newEntry}`
+    );
+    if (replaced === fileContent) throw new Error("Manager marker not found in posts.tsx");
+    fileContent = replaced;
+    updated = true;
   }
+
+  if (!updated) throw new Error("No posts were inserted into posts.tsx");
+
+  await fs.writeFile(TARGET_FILE, fileContent);
+  await logLine("Updated posts.tsx");
+
+  // 4) Git Commit & Push (fail if push fails)
+  const gitDir = path.join(HOME, "ghq/github.com/takashisite/aine-life");
+  await logLine(`Committing changes in ${gitDir}...`);
+  await execAsync(
+    `cd ${gitDir} && git add . && git commit -m "docs: auto-generated diary for ${targetDate}" && git push`
+  );
+  await logLine("Successfully pushed to GitHub.");
 }
 
-main().catch(console.error);
+main()
+  .then(() => process.exit(0))
+  .catch(async (e) => {
+    await logLine(`ERROR: ${String(e)}`);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await releaseLock();
+  });
